@@ -6,6 +6,111 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+#[derive(serde::Deserialize, serde::Serialize)]
+struct UsuarioNexus {
+    name: String,
+    is_premium: bool,
+    user_id: u64,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct ModNexus{
+    mod_id: u64,
+    name: String,
+    summary: Option<String>,
+    version: String,
+    author: String,
+    picture_url: Option<String>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct ModDetalle {
+    mod_id: u64,
+    name: String,
+    summary: Option<String>,
+    picture_url: Option<String>,
+    version: String,
+    author: String,
+    uploaded_by: String,
+    endorsement_count: Option<u64>,
+    mod_downloads: Option<u64>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct RespuestaArchivos {
+    files: Vec<ArchivoMod>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct ArchivoMod {
+    file_id: u64,
+    name: String,
+    version: String,
+    category_name: Option<String>,
+    size_kb: Option<u64>,
+    file_name: String,
+}
+
+#[tauri::command]
+async fn archivos_mod(mod_id: u64) -> Result<Vec<ArchivoMod>, String> {
+    let key = std::env::var("NEXUS_API_KEY")
+        .map_err(|_| "No hay API key configurada".to_string())?;
+
+    let url = format!("https://api.nexusmods.com/v1/games/stardewvalley/mods/{mod_id}/files.json");
+
+    let respuesta: RespuestaArchivos = reqwest::Client::new()
+        .get(&url)
+        .header("apikey", key)
+        .header("User-Agent", "StardewModManager/0.1")
+        .send()
+        .await
+        .map_err(|e| format!("Error de red: {e}"))?
+        .json()
+        .await
+        .map_err(|e| format!("No pude entender la respuesta: {e}"))?;
+
+    Ok(respuesta.files)   // ← devolvemos SOLO el vector de adentro del sobre
+}
+
+#[tauri::command]
+async fn detalle_mod(mod_id: u64) -> Result<ModDetalle, String>{
+    let key = std::env::var("NEXUS_API_KEY")
+        .map_err(|_| "No hay API key configurada".to_string())?;
+
+    let url = format!("https://api.nexusmods.com/v1/games/stardewvalley/mods/{mod_id}.json");
+
+    let mod_detalle: ModDetalle = reqwest::Client::new()
+        .get(&url)
+        .header("apikey", key)
+        .header("User-Agent", "StardewModManager/0.1")
+        .send()
+        .await
+        .map_err(|e| format!("Error de red: {e}"))?
+        .json()
+        .await
+        .map_err(|e| format!("No pude entender la respuesta: {e}"))?;
+
+    Ok(mod_detalle)
+}
+
+#[tauri::command]
+async fn mods_trending() -> Result<Vec<ModNexus>, String>{
+    let key = std::env::var("NEXUS_API_KEY")
+        .map_err(|_| "No hay API key configurada".to_string())?;
+
+    let mods: Vec<ModNexus> = reqwest::Client::new()
+        .get("http://api.nexusmods.com/v1/games/stardewvalley/mods/trending.json")
+        .header("apikey", key)
+        .header("User-Agent", "StardewModManager/0.1")
+        .send()
+        .await
+        .map_err(|e| format!("Error de red: {e}"))?
+        .json()
+        .await
+        .map_err(|e |format!("No pude entender la respuesta: {e}"))?;
+
+    Ok(mods)
+}
 
 #[tauri::command]
 fn suma(a:i32, b:i32) -> i32 {
@@ -60,6 +165,32 @@ fn encontrar_steam_base()-> Option<PathBuf> {
     None
 }
 
+#[tauri::command]
+async fn validar_nexus() -> Result<UsuarioNexus , String>{
+
+    let key = std::env::var("NEXUS_API_KEY")
+        .map_err(|_| "No hay API key configurada".to_string())?;
+
+    let respuesta = reqwest::Client::new()
+        .get("https://api.nexusmods.com/v1/users/validate.json")
+        .header("apikey",key)
+        .header("User-Agent", "StardewModManager/0.1")
+        .send()
+        .await
+        .map_err(|e| format!("Error de red: {e}"))?;
+
+    let usuario: UsuarioNexus = respuesta
+        .json()
+        .await
+        .map_err(|e| format!("No pude leer la respuesta: {e}"))?;
+
+
+    Ok(usuario)
+
+}
+
+
+
 
 fn leer_bibliotecas_steam(steam_base: &Path) -> Vec<PathBuf> {
     let mut bibliotecas: Vec<PathBuf> = Vec::new();
@@ -95,7 +226,7 @@ pub fn run() {
     dotenvy::dotenv().ok();
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet,suma,detectar_stardew,nexus_key_cargada])
+        .invoke_handler(tauri::generate_handler![archivos_mod,suma,detectar_stardew,nexus_key_cargada,validar_nexus,mods_trending,detalle_mod])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

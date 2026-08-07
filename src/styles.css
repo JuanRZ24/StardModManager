@@ -110,3 +110,9 @@ button {
     background-color: #0f0f0f69;
   }
 }
+.mod img {
+  max-width: 100%;
+  border-radius: 6px;
+  display: block;
+  margin-bottom: 8px;
+}

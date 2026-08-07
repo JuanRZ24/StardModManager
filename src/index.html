@@ -10,11 +10,20 @@
 </head>
 <body>
   <main class="container">
-    <h1> Stardew Mod Manager</h1>
+  <h1>🌱 Stardew Mod Manager</h1>
 
+  <div id="vista-lista">
     <button id="detectar-btn">Detectar Stardew Valley</button>
-    
-    <p id="resultado">Aun no hemos buscado el juego</p>
-  </main>
+    <p id="resultado">Aún no hemos buscado el juego.</p>
+    <hr />
+    <button id="mods-btn">Ver mods populares</button>
+    <div id="lista-mods"></div>
+  </div>
+
+  <div id="vista-detalle" style="display:none">
+    <button id="volver-btn">← Volver</button>
+    <div id="detalle-contenido"></div>
+  </div>
+</main>
 </body>
 </html>
