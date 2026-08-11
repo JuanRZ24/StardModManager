@@ -1,5 +1,9 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-use std::{fs::read_to_string, path::{Path, PathBuf}};
+use url::{Url, ParseError};
+use std::path::{Path, PathBuf};
+use tauri_plugin_deep_link::DeepLinkExt;
+
+
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -49,6 +53,22 @@ struct ArchivoMod {
     category_name: Option<String>,
     size_kb: Option<u64>,
     file_name: String,
+}
+
+#[derive(serde::Deserialize)]
+struct Mirror {
+    #[serde(rename = "URI")]
+    uri: String,
+}
+
+
+#[derive(serde::Deserialize, serde::Serialize)]
+struct UrlParseada{
+    game_domain: String,
+    mod_id: u64,
+    file_id:u64,
+    key: String,
+    expires: String,
 }
 
 #[tauri::command]
@@ -221,12 +241,103 @@ fn nexus_key_cargada() -> bool {
 }
 
 
+
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     dotenvy::dotenv().ok();
     tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_single_instance::init(|_app, _argv, _cwd| { /* ... */ }))
+        .plugin(tauri_plugin_deep_link::init())
+        .setup(|app| {
+
+            app.deep_link().register_all()?;
+            
+            let start_urls = app.deep_link().get_current()?;
+            if let Some(urls) = start_urls {
+            tauri::async_runtime::spawn(async move {
+                match manejar_urls(urls).await {
+            Ok(link) => println!("Link de descarga: {}", link),
+            Err(e)   => println!("Error: {}", e),
+        }
+    });
+}
+
+            app.deep_link().on_open_url(|event|{
+                tauri::async_runtime::spawn(async move {
+                match manejar_urls(event.urls()).await {
+            Ok(link) => println!("Link de descarga: {}", link),
+            Err(e)   => println!("Error: {}", e)
+             }
+    });
+            });
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![archivos_mod,suma,detectar_stardew,nexus_key_cargada,validar_nexus,mods_trending,detalle_mod])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+
+async fn manejar_urls(urls: Vec<Url>) -> Result<String,String>{
+    println!("deep links urls: {:?}", urls);
+     let keyapi = std::env::var("NEXUS_API_KEY")
+        .map_err(|_| "No hay API key configurada".to_string())?;
+    let mut key = String::new();       // arranca vacia
+    let mut expires = String::new();
+
+    for url in urls {
+            let partes: Vec<&str> = url.path().split('/').collect();
+            println!("{:?}", partes);  
+
+            let mod_id = partes[2];
+            let file_id = partes[4]; 
+
+            for (clave, valor ) in url.query_pairs(){
+                if clave == "key"{
+                    key = valor.to_string();
+            }else if clave == "expires"{
+                    expires = valor.to_string();
+            }
+
+            
+
+
+            
+      
+    }
+    println!("key = {}, expires = {}, mod_id = {}, file_id = {}", key, expires,mod_id,file_id);
+    
+    let urlFinal = format!("https://api.nexusmods.com/v1/games/stardewvalley/mods/{mod_id}/files/{file_id}/download_link.json?key={key}&expires={expires}");
+
+
+   
+
+
+    let respuesta = reqwest::Client::new()
+        .get(urlFinal)
+        .header("apikey",keyapi)
+        .header("User-Agent", "StardewModManager/0.1")
+        .send()
+        .await
+        .map_err(|e| format!("Error de red: {e}"))?;
+
+    let mirrors: Vec<Mirror> = respuesta
+        .json()
+        .await
+        .map_err(|e| format!("No se puedo leer la respuesta: {e}"))?;
+
+    let link = mirrors[0].uri.clone();
+
+    
+
+      
+ 
+    println!("{}",link);
+
+    return Ok(link)
+    
+}
+
+Err("no llego ninguna url".to_string())
 }

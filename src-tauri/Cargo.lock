@@ -3592,6 +3592,7 @@ dependencies = [
  "tauri-plugin-deep-link",
  "tauri-plugin-opener",
  "tauri-plugin-single-instance",
+ "url",
 ]
 
 [[package]]
