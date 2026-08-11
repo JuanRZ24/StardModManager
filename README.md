@@ -18,7 +18,8 @@ Un gestor e instalador de mods de **Stardew Valley** para Windows, hecho con **R
 | ✅ | Explorar los mods **populares** de Stardew desde Nexus Mods |
 | ✅ | Página de **detalle** de cada mod: imágenes, versión, autor, endorsements y descargas |
 | ✅ | Lista de **archivos descargables** por mod |
-| 🚧 | Descarga mediante enlaces `nxm://` (estilo Vortex) — *en progreso* |
+| ✅ | Recibe enlaces `nxm://` (estilo Vortex) y resuelve el link de descarga real desde Nexus |
+| 🚧 | Descarga del archivo del mod desde el CDN — *en progreso* |
 | ⏳ | Instalación automática en la carpeta `Mods` de SMAPI (con backup) |
 | ⏳ | Resolución de dependencias entre mods |
 | ⏳ | Detección de conflictos |
