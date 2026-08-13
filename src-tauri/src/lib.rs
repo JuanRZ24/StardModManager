@@ -329,6 +329,8 @@ async fn manejar_urls(urls: Vec<Url>) -> Result<String,String>{
 
     let link = mirrors[0].uri.clone();
 
+    let ruta = descargar_archivo(&link).await?;
+
     
 
       
@@ -340,4 +342,27 @@ async fn manejar_urls(urls: Vec<Url>) -> Result<String,String>{
 }
 
 Err("no llego ninguna url".to_string())
+}
+
+
+
+async fn descargar_archivo(link: &str) -> Result<PathBuf, String> {
+
+    let file = reqwest::get(link)
+        .await.map_err(|e|format!("Hubo un error {e}"))?
+        .bytes()
+        .await.map_err(|e|format!("Hubo un error {e}"))?;
+    // 1. GET al link  ->  saca los bytes
+
+
+    // 2. arma la ruta destino: temp_dir() + join(un nombre .zip)
+
+    let carpeta = std::env::temp_dir().join("mod.zip");
+    // 3. escribe los bytes en esa ruta  (std::fs::write)
+    std::fs::write(&carpeta, &file)
+        .map_err(|e| format!("No se pudo escribir el archivo {e}"))?;
+
+    // 4. devuelve la ruta:  Ok(ruta)
+
+    Ok(carpeta)
 }
